@@ -21,7 +21,13 @@ module Serviceworker
 
       def update_application_js
         ext, directive = detect_js_format
-        snippet = "#{directive} require serviceworker-companion\n"
+
+        if defined?(::Webpacker)
+          snippet = 'require("serviceworker-companion");'
+        else # sprockets
+          snippet = "#{directive} require serviceworker-companion\n"
+        end
+
         append_to_file application_js_path(ext), snippet
       end
 
