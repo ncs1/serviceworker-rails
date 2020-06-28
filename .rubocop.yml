@@ -31,7 +31,7 @@ Metrics/CyclomaticComplexity:
 Metrics/PerceivedComplexity:
   Enabled: false
 
-Layout/AlignParameters:
+Layout/ParameterAlignment:
   EnforcedStyle: with_fixed_indentation
 
 Style/StringLiterals:
@@ -79,7 +79,7 @@ Layout/IndentationWidth:
 Layout/DefEndAlignment:
   Enabled: false
 
-Lint/HandleExceptions:
+Lint/SuppressedException:
   Enabled: false
 
 Naming/FileName:
