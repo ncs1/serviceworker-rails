@@ -70,7 +70,11 @@ module Serviceworker
       end
 
       def javascripts_dir(*paths)
-        join("app", "assets", "javascripts", *paths)
+        if defined?(::Webpacker)
+          join("app", "javascript", "packs", *paths)
+        else
+          join("app", "assets", "javascripts", *paths)
+        end
       end
 
       def initializers_dir(*paths)
