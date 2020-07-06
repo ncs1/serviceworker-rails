@@ -57,6 +57,7 @@ manual installation steps.
 
 After bundling the gem in your Rails project, run the generator from the root of
 your Rails project.
+It's *recommended* to use the automated setup which takes care for the specific asset pipeline used by your app, and modify the files being generated.
 
 ```
 $ rails g serviceworker:install
@@ -75,7 +76,7 @@ The generator will create the following files:
 
 It will also make the following modifications to existing files:
 
-* Adds a sprockets directive to `application.js` to require
+* Adds a sprockets directive/webpacker require to `application.js` to require
   `serviceworker-companion.js`
 * Adds `serviceworker.js` and `manifest.json` to the list of compiled assets in
   `config/initializers/assets.rb`
@@ -89,7 +90,8 @@ out the manual setup section below.
 
 ### Manual setup
 
-Let's add a `ServiceWorker` to cache some of your JavaScript and CSS assets. We'll assume you already have a Rails application using the asset pipeline built on Sprockets.
+Let's add a `ServiceWorker` to cache some of your JavaScript and CSS assets.
+The following assumes that you have a Rails application *using the sprockets asset pipeline*.
 
 #### Add a service worker script
 
@@ -99,12 +101,18 @@ Create a JavaScript file called `app/assets/javascripts/serviceworker.js.erb`:
 // app/assets/javascripts/serviceworker.js.erb
 console.log('[Service Worker] Hello world!');
 
-var CACHE_NAME = 'v1-cached-assets'
+var CACHE_VERSION = 'v1';
+var CACHE_NAME = CACHE_VERSION + ':sw-cache-';
 
 function onInstall(event) {
+  console.log('[Serviceworker]', "Rails Service Worker Installing!", event);
   event.waitUntil(
     caches.open(CACHE_NAME).then(function prefill(cache) {
       return cache.addAll([
+
+        // make sure serviceworker.js is not required by application.js
+        // if you want to reference application.js from here
+        // (Change accordingly when Webpacker serves js/css).
         '<%= asset_path "application.js" %>',
         '<%= asset_path "application.css" %>',
         '/offline.html',
@@ -115,7 +123,7 @@ function onInstall(event) {
 }
 
 function onActivate(event) {
-  console.log('[Serviceworker]', "Activating!", event);
+  console.log('[Serviceworker]', "Rails Service Worker Activating!", event);
   event.waitUntil(
     caches.keys().then(function(cacheNames) {
       return Promise.all(
@@ -123,7 +131,7 @@ function onActivate(event) {
           // Return true if you want to remove this cache,
           // but remember that caches are shared across
           // the whole origin
-           return cacheName.indexOf('v1') !== 0;
+          return cacheName.indexOf(CACHE_VERSION) !== 0;
         }).map(function(cacheName) {
           return caches.delete(cacheName);
         })
@@ -132,8 +140,30 @@ function onActivate(event) {
   );
 }
 
-self.addEventListener('install', onInstall)
-self.addEventListener('activate', onActivate)
+// Borrowed from https://github.com/TalAter/UpUp
+function onFetch(event) {
+  event.respondWith(
+    // try to return untouched request from network first
+    fetch(event.request).catch(function() {
+      // if it fails, try to return request from the cache
+      return caches.match(event.request).then(function(response) {
+        if (response) {
+          return response;
+        }
+        // if not found in cache, return default offline content for navigate requests
+        if (event.request.mode === 'navigate' ||
+          (event.request.method === 'GET' && event.request.headers.get('accept').includes('text/html'))) {
+          console.log('[Serviceworker]', "Rails Service Worker Fetching offline content", event);
+          return caches.match('/offline.html');
+        }
+      })
+    })
+  );
+}
+
+self.addEventListener('install', onInstall);
+self.addEventListener('activate', onActivate);
+self.addEventListener('fetch', onFetch);
 ```
 
 For use in production, instruct Sprockets to precompile service worker scripts separately from `application.js`, as in the following example:
@@ -146,10 +176,15 @@ You'll need to register the service worker with a companion script in your main 
 // app/assets/javascripts/serviceworker-companion.js
 
 if (navigator.serviceWorker) {
-  navigator.serviceWorker.register('/serviceworker.js', { scope: './' })
-    .then(function(reg) {
-      console.log('[Page] Service worker registered!');
-    });
+  navigator.serviceWorker
+    .register("/serviceworker.js", { scope: "./" })
+      .then(function() {
+        console.log("[Companion]", "Rails Service worker registered!")
+      })
+      .catch(function(error) {
+	      // registration failed :(
+        console.log("[Companion]", "Rails Service worker registration failed: " + error)
+      })
 }
 
 // app/assets/javascripts/application.js
@@ -167,7 +202,11 @@ You may also want to create a `manifest.json` file to make your web app installa
 {
   "name": "My Progressive Rails App",
   "short_name": "Progressive",
-  "start_url": "/"
+  "start_url": "/",
+  "theme_color": "#000000",
+  "background_color": "#FFFFFF",
+  "display": "fullscreen",
+  "orientation": "portrait"
 }
 ```
 
@@ -175,6 +214,7 @@ You'd then link to your manifest from the application layout:
 
 ```html
 <link rel="manifest" href="/manifest.json" />
+<meta name="apple-mobile-web-app-capable" content="yes">
 ```
 
 #### Configure the middleware
