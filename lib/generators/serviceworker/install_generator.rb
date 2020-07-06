@@ -23,7 +23,7 @@ module Serviceworker
         ext, directive = detect_js_format
 
         snippet = if defined?(::Webpacker)
-          'require("serviceworker-companion");'
+          'require("./serviceworker-companion");'
                   else # sprockets
           "#{directive} require serviceworker-companion\n"
                   end
