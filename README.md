@@ -283,6 +283,13 @@ function onFetch(event) {
 self.addEventListener('fetch', onFetch);
 ```
 
+#### Integration with Webpacker notes
+
+The automated install script takes care for the initial scaffold for using the serviceworker with Webpacker.
+
+Depending on which loaders you use, Webpacker may not serve the manifest.json.erb correctly.
+Our suggestion is to create a manifest.json and put it under the public/ directory instead of being served from Webpacker.
+
 ## Configuration
 
 When `serviceworker-rails` is required in your Gemfile, it will insert a middleware into the Rails
