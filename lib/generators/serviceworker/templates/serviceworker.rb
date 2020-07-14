@@ -4,7 +4,7 @@ Rails.application.configure do
   config.serviceworker.routes.draw do
     # map to assets implicitly
     <% if defined?(::Webpacker) -%>
-    match "/serviceworker.js", pack: true
+    match "/serviceworker.js" => 'serviceworker.js', pack: true
     <% else -%>
     match "/serviceworker.js"
     <% end -%>
