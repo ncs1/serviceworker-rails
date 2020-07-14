@@ -32,6 +32,8 @@ module Serviceworker
       end
 
       def update_precompiled_assets
+        return if defined?(::Webpacker)
+
         snippet = "Rails.configuration.assets.precompile += %w[serviceworker.js manifest.json]\n"
         file_path = initializers_dir("assets.rb")
         FileUtils.touch file_path
